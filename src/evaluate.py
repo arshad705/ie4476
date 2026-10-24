@@ -37,27 +37,32 @@ def run_baseline(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
 
 
 def run_pca_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
-                       d_list: Sequence[int], step: int = STEP) -> np.ndarray:
+                       d_list: Sequence[int], step: int = STEP,
+                       splits: Sequence[tuple[np.ndarray, np.ndarray]] | None = None,
+                       classifiers: dict[str, Callable] | None = None) -> np.ndarray:
     """E1. PCA fitted per split on training data, then each classifier.
 
-    Returns acc[offset, classifier, d_index] with classifiers in CLASSIFIERS
-    order; nan where undefined (d > N - 1, or d > N - c for min-Mahal).
+    splits defaults to the pose-spaced splits for step; classifiers defaults
+    to CLASSIFIERS. Returns acc[split, classifier, d_index]; nan where
+    undefined (d > N - 1, or d > N - c for unregularised min-Mahal).
     """
-    acc = np.full((step, len(CLASSIFIERS), len(d_list)), np.nan)
-    for k in range(step):
-        tr, te = make_split(pose, k, step)
+    if splits is None:
+        splits = [make_split(pose, k, step) for k in range(step)]
+    classifiers = CLASSIFIERS if classifiers is None else classifiers
+    acc = np.full((len(splits), len(classifiers), len(d_list)), np.nan)
+    for k, (tr, te) in enumerate(splits):
         m, V, _ = fit_pca(X[tr])
         # project once to the maximum dimension, then slice columns per d
         Ztr = pca_project(X[tr], m, V, V.shape[1])
         Zte = pca_project(X[te], m, V, V.shape[1])
-        cap = len(tr) - len(np.unique(y[tr]))   # N - c
         for j, d in enumerate(d_list):
             if d > V.shape[1]:
                 continue
-            for i, (name, predict) in enumerate(CLASSIFIERS.items()):
-                if name == "min-Mahal" and d > cap:
-                    continue
-                acc[k, i, j] = accuracy(predict(Ztr[:, :d], y[tr], Zte[:, :d]), y[te])
+            for i, predict in enumerate(classifiers.values()):
+                try:
+                    acc[k, i, j] = accuracy(predict(Ztr[:, :d], y[tr], Zte[:, :d]), y[te])
+                except ValueError:   # min-Mahal above the N - c cap
+                    pass
     return acc
 
 
@@ -87,9 +92,35 @@ def run_lda_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
 
 
 def run_trainsize_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
-                             steps: Sequence[int]) -> dict:
-    """E4. Returns per-step accuracy arrays keyed by step."""
-    raise NotImplementedError
+                             steps: Sequence[int], d_list: Sequence[int],
+                             m_list: Sequence[int]) -> dict[int, dict[str, np.ndarray]]:
+    """E4. For each step (72 / step training images per class) and each
+    pose-spaced split, select d (PCA) and (m, d) (PCA -> LDA) per classifier
+    by select_by_validation on the training set, then score on the test set.
+
+    Returns {step: {"pca_d", "pca_test", "lda_m", "lda_d", "lda_test"}}, each
+    of shape (step, classifier).
+    """
+    d_lda = list(range(1, len(np.unique(y))))
+    out = {}
+    for step in steps:
+        shape = (step, len(CLASSIFIERS))
+        r = {"pca_d": np.zeros(shape, dtype=int), "pca_test": np.zeros(shape),
+             "lda_m": np.zeros(shape, dtype=int), "lda_d": np.zeros(shape, dtype=int),
+             "lda_test": np.zeros(shape)}
+        for k in range(step):
+            tr, te = make_split(pose, k, step)
+            for i, predict in enumerate(CLASSIFIERS.values()):
+                d, _ = select_by_validation(X, y, pose, tr, d_list, pca_scorer(predict, d_list))
+                r["pca_d"][k, i] = d
+                # the scorer fits on its first pair and scores on its second
+                r["pca_test"][k, i] = pca_scorer(predict, [d])(X[tr], y[tr], X[te], y[te])[0]
+                candidates, score_fn = lda_scorer(predict, m_list, d_lda)
+                (mp, d), _ = select_by_validation(X, y, pose, tr, candidates, score_fn)
+                r["lda_m"][k, i], r["lda_d"][k, i] = mp, d
+                r["lda_test"][k, i] = lda_scorer(predict, [mp], [d])[1](X[tr], y[tr], X[te], y[te])[0]
+        out[step] = r
+    return out
 
 
 def select_by_validation(X: np.ndarray, y: np.ndarray, pose: np.ndarray,

@@ -151,7 +151,7 @@ Use float64 throughout: the LDA generalised eigenproblem and Mahalanobis near th
 
 Leakage rule: per-image operations are fine here. Anything using statistics across images belongs inside the fit functions on training data only.
 
-Pose-spaced split (adjacent poses are 5° apart and nearly identical, so a random split makes 1-NN score ~100% at every d):
+Pose-spaced split (evenly spaced training poses give every object the same, controlled pose coverage; a random split of the same size leaves gaps of 50–110° between training poses for some objects and lowers accuracy — see E5):
 
 ```python
 def make_split(pose, offset, step=STEP):
@@ -383,7 +383,7 @@ Use log-scale x for figure 3 or a broken axis, since most of the change happens 
 | Mahalanobis at d > N − c | `LinAlgError` or nonsense | Cap d at N − c, store `nan` |
 | Hard-coded 220 inside validation folds / E4 | `LinAlgError` in fold, wrong caps | Derive N − c from the fitting set |
 | Broadcast 1-NN distances at large d | Out-of-memory / very slow | `‖a‖² + ‖b‖² − 2ab` or `cdist` |
-| Random split | ~100% everywhere, flat curves | Pose-spaced split |
+| Random split | Uneven pose coverage, results depend on the seed | Pose-spaced split |
 | Choosing best d / m / ε from the test curve | Test data used to set parameters (violates brief) | `select_by_validation` on training data |
 | Identical min-Euclid and min-Mahal curves in LDA space | Looks like a bug | Expected: $W^T S_w W = I$ |
 | `np.mean` over arrays with `nan` | `nan` in plots/table | `np.nanmean` / `np.nanstd` |
