@@ -1,5 +1,8 @@
 """PCA and LDA, fitted on training data only."""
+import warnings
+
 import numpy as np
+from scipy.linalg import eigh
 
 
 def fit_pca(Xtr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -28,6 +31,26 @@ def pca_project(X: np.ndarray, m: np.ndarray, eigvecs: np.ndarray, d: int) -> np
 def fit_lda(Z: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Fit LDA on PCA features Z (N, m) with labels y (N,).
 
-    Returns W (m, c-1) sorted by decreasing eigenvalue, and the eigenvalues (c-1,).
+    Solves S_b w = lambda S_w w (slides 73-77). Z must have m <= N - c columns
+    so that S_w is invertible. Returns W (m, c-1) sorted by decreasing
+    eigenvalue, normalised so that W^T S_w W = I, and the eigenvalues (c-1,).
     """
-    raise NotImplementedError
+    classes = np.unique(y)
+    mean = Z.mean(axis=0)
+    Sw = np.zeros((Z.shape[1], Z.shape[1]))
+    Sb = np.zeros_like(Sw)
+    for k in classes:
+        Zk = Z[y == k]
+        mu = Zk.mean(axis=0)
+        Sw += (Zk - mu).T @ (Zk - mu)
+        Sb += len(Zk) * np.outer(mu - mean, mu - mean)
+    try:
+        vals, vecs = eigh(Sb, Sw)
+    except np.linalg.LinAlgError:
+        # S_w numerically not positive definite (m at the N - c limit): add a tiny ridge
+        warnings.warn("S_w not positive definite; adding a 1e-10 relative ridge")
+        Sw += 1e-10 * np.trace(Sw) / len(Sw) * np.eye(len(Sw))
+        vals, vecs = eigh(Sb, Sw)
+    # eigh returns ascending order; S_b has rank c - 1, so keep the top c - 1
+    order = np.argsort(vals)[::-1][:len(classes) - 1]
+    return vecs[:, order], vals[order]

@@ -6,7 +6,7 @@ import numpy as np
 from .classifiers import min_euclid_predict, min_mahal_predict, nn_predict
 from .config import STEP
 from .data import make_split
-from .reduction import fit_pca, pca_project
+from .reduction import fit_lda, fit_pca, pca_project
 
 CLASSIFIERS = {"1-NN": nn_predict, "min-Euclid": min_euclid_predict, "min-Mahal": min_mahal_predict}
 
@@ -62,9 +62,28 @@ def run_pca_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
 
 
 def run_lda_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
-                       d_list: Sequence[int]) -> np.ndarray:
-    """E2 (PCA(N-c) -> LDA). Returns acc[offset, classifier, d_index]."""
-    raise NotImplementedError
+                       d_list: Sequence[int], step: int = STEP,
+                       m_pca: int | None = None) -> np.ndarray:
+    """E2. PCA to m_pca dims (default N - c), then LDA, both fitted per split
+    on training data, then each classifier.
+
+    Returns acc[offset, classifier, d_index] with classifiers in CLASSIFIERS
+    order; nan for d > c - 1.
+    """
+    acc = np.full((step, len(CLASSIFIERS), len(d_list)), np.nan)
+    for k in range(step):
+        tr, te = make_split(pose, k, step)
+        m, V, _ = fit_pca(X[tr])
+        mp = len(tr) - len(np.unique(y[tr])) if m_pca is None else m_pca
+        W, _ = fit_lda(pca_project(X[tr], m, V, mp), y[tr])
+        Ltr = pca_project(X[tr], m, V, mp) @ W
+        Lte = pca_project(X[te], m, V, mp) @ W
+        for j, d in enumerate(d_list):
+            if d > W.shape[1]:
+                continue
+            for i, predict in enumerate(CLASSIFIERS.values()):
+                acc[k, i, j] = accuracy(predict(Ltr[:, :d], y[tr], Lte[:, :d]), y[te])
+    return acc
 
 
 def run_trainsize_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
