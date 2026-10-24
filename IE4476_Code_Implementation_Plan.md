@@ -358,10 +358,9 @@ Use log-scale x for figure 3 or a broken axis, since most of the change happens 
 | LDA | `feat: PCA->LDA` |
 | Figures | `fig: report figures and results table` |
 
-- Commit small and often. Keep the GitHub repo **private** until after grading (Settings → General → Danger Zone → Change visibility).
+- Commit small and often. The GitHub repo is public.
 - Commit author must be the student's own GitHub identity (`git config user.name` / `user.email`). No co-author trailers.
 - README: project aim, how to download the dataset, how to set up the env, Python version, notebook run order.
-- Tag the final version used for the report: `git tag v1.0-submission && git push origin v1.0-submission`.
 
 ---
 
@@ -408,12 +407,3 @@ Include the `src/` files plus the key loop cells from notebooks 02–04. This re
 - Accuracy arrays: shape `[offset, classifier, d_index]`, saved in one `.npz` with the matching `d_list`.
 - Build in this order: `config` → `data` + notebook 01 → `reduction` (PCA) → `classifiers` → notebook 02 → LDA → notebook 03 → `evaluate.select_by_validation` → notebooks 04–05.
 - After each module, add a quick test cell (shapes, sorted eigenvalues, no train/test overlap).
-
-## 16. Coding timeline
-
-| Dates | Task |
-|---|---|
-| 24–26 Oct | Repo, env, `config.py`, `data.py`, notebook 01 with sanity checks |
-| 27–30 Oct | `reduction.py` (PCA), `classifiers.py`, notebook 02 (E0, E1, E3) |
-| 31 Oct – 2 Nov | LDA, notebook 03 (E2), notebook 04 (E4) |
-| 3–5 Nov | Optional E5/E6, notebook 05 figures and table, tag `v1.0-submission` |
