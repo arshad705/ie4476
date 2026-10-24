@@ -358,7 +358,7 @@ Use log-scale x for figure 3 or a broken axis, since most of the change happens 
 | LDA | `feat: PCA->LDA` |
 | Figures | `fig: report figures and results table` |
 
-- Commit small and often. Keep the GitHub repo **private** until after grading (Settings → General → Danger Zone → Change visibility).
+- Commit small and often. The GitHub repo is public.
 - Commit author must be the student's own GitHub identity (`git config user.name` / `user.email`). No co-author trailers.
 - README: project aim, how to download the dataset, how to set up the env, Python version, notebook run order.
 
