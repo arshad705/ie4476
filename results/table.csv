@@ -1,0 +1,13 @@
+method,classifier,selected by validation,test acc mean,test acc std,best on test curve (oracle)
+Raw pixels,1-NN,n = 1024,0.9688,0.0020,
+Raw pixels,min-Euclid,n = 1024,0.9135,0.0039,
+PCA,1-NN,d = 16.5 [12–18],0.9740,0.0052,0.9765
+PCA,min-Euclid,d = 95 [70–120],0.9125,0.0027,0.9136
+PCA,min-Mahal,d = 72.5 [55–105],0.9483,0.0041,0.9510
+PCA(N − c) → LDA,1-NN,"fixed: m = 220, d = 19",0.5711,0.1675,0.5711
+PCA(N − c) → LDA,min-Euclid,"fixed: m = 220, d = 19",0.5713,0.1677,0.5713
+PCA(N − c) → LDA,min-Mahal,"fixed: m = 220, d = 19",0.5713,0.1677,0.5713
+PCA(m) → LDA,1-NN,"m = 30 [20–30], d = 13.5 [12–15]",0.9753,0.0047,0.9815
+PCA(m) → LDA,min-Euclid,"m = 75 [50–100], d = 16 [12–19]",0.9486,0.0066,0.9531
+PCA(m) → LDA,min-Mahal,"m = 75 [50–100], d = 16 [12–19]",0.9486,0.0066,0.9531
+"PCA, regularised",min-Mahal,"ε ∈ {0, 0.001, 0.01, 0.1}, d = 105 [60–145]",0.9496,0.0024,0.9517
