@@ -1,0 +1,9 @@
+numpy
+scipy
+matplotlib
+pillow
+pandas
+jupyter
+ipykernel
+nbstripout
+scikit-learn
