@@ -61,3 +61,14 @@ def make_split(pose: np.ndarray, offset: int, step: int = STEP) -> tuple[np.ndar
         raise ValueError(f"offset must be in [0, {step}), got {offset}")
     train = (pose % step) == offset
     return np.where(train)[0], np.where(~train)[0]
+
+
+def make_random_split(y: np.ndarray, n_per_class: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+    """Random split with n_per_class training images per class (E5 only).
+
+    Returns (train_idx, test_idx) as sorted integer index arrays.
+    """
+    rng = np.random.default_rng(seed)
+    train = np.concatenate([rng.choice(np.flatnonzero(y == k), n_per_class, replace=False)
+                            for k in np.unique(y)])
+    return np.sort(train), np.setdiff1d(np.arange(len(y)), train)
