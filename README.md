@@ -12,6 +12,8 @@ and unzip so the images are at `data/coil-20-proc/obj1__0.png` … `obj20__71.pn
 
 ## Setup
 
+Python 3.12.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
