@@ -94,10 +94,64 @@ def run_trainsize_experiment(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
 
 def select_by_validation(X: np.ndarray, y: np.ndarray, pose: np.ndarray,
                          train_idx: np.ndarray, candidates: Sequence,
-                         score_fn: Callable) -> object:
+                         score_fn: Callable) -> tuple[object, np.ndarray]:
     """Leave-one-pose-out within the training set.
 
     For each training pose p: validate on images at pose p, fit on the
     other training poses. Return the candidate with the best mean score.
+
+    score_fn(Xfit, yfit, Xval, yval) returns one score per candidate (nan if
+    the candidate is undefined for that fold). Only train_idx is ever used.
+    Ties go to the earliest candidate. Returns (best candidate, mean scores).
     """
-    raise NotImplementedError
+    train_idx = np.asarray(train_idx)
+    folds = []
+    for p in np.unique(pose[train_idx]):
+        val = train_idx[pose[train_idx] == p]
+        fit = train_idx[pose[train_idx] != p]
+        folds.append(score_fn(X[fit], y[fit], X[val], y[val]))
+    scores = np.array(folds)
+    # a candidate counts only if it is defined in every fold
+    mean = np.where(np.isnan(scores).any(axis=0), np.nan, scores.mean(axis=0))
+    return candidates[int(np.nanargmax(mean))], mean
+
+
+def pca_scorer(predict: Callable, d_list: Sequence[int]) -> Callable:
+    """score_fn for select_by_validation over PCA dimension d (one per d_list entry)."""
+    def score(Xf, yf, Xv, yv):
+        m, V, _ = fit_pca(Xf)
+        Zf, Zv = pca_project(Xf, m, V, V.shape[1]), pca_project(Xv, m, V, V.shape[1])
+        out = np.full(len(d_list), np.nan)
+        for j, d in enumerate(d_list):
+            if d > V.shape[1]:
+                continue
+            try:
+                out[j] = accuracy(predict(Zf[:, :d], yf, Zv[:, :d]), yv)
+            except ValueError:   # min-Mahal above the N - c cap of this fold
+                pass
+        return out
+    return score
+
+
+def lda_scorer(predict: Callable, m_list: Sequence[int],
+               d_list: Sequence[int]) -> tuple[list[tuple[int, int]], Callable]:
+    """Candidates [(m, d), ...] and score_fn for joint selection of the
+    intermediate PCA dim m and the LDA dim d. m above N - c of a fold is nan.
+    """
+    candidates = [(mp, d) for mp in m_list for d in d_list]
+
+    def score(Xf, yf, Xv, yv):
+        m, V, _ = fit_pca(Xf)
+        cap = len(yf) - len(np.unique(yf))
+        out = np.full(len(candidates), np.nan)
+        for a, mp in enumerate(m_list):
+            if mp > cap:
+                continue
+            Zf, Zv = pca_project(Xf, m, V, mp), pca_project(Xv, m, V, mp)
+            W, _ = fit_lda(Zf, yf)
+            Lf, Lv = Zf @ W, Zv @ W
+            for b, d in enumerate(d_list):
+                if d <= W.shape[1]:
+                    out[a * len(d_list) + b] = accuracy(predict(Lf[:, :d], yf, Lv[:, :d]), yv)
+        return out
+    return candidates, score
